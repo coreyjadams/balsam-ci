@@ -29,18 +29,10 @@ def build_env(env_path : pathlib.Path, python):
     p.communicate()
 
 
-def install_mpi4py(virtualenv_path : pathlib.Path):
-
-    # Install balsam and it's dependencies:
-    command = f"source {virtualenv_path}/bin/activate; MPICC=CC pip install mpi4py;"
-    p = subprocess.Popen(command, shell=True)
-    print("Installing mpi4py into the virtualenv")
-    p.communicate()
-
 def install_balsam(virtualenv_path : pathlib.Path):
 
     # Install balsam and it's dependencies:
-    command = f"source {virtualenv_path}/bin/activate; pip install balsam;"
+    command = f"source {virtualenv_path}/bin/activate; pip install balsam-flow;"
     p = subprocess.Popen(command, shell=True)
     print("Installing balsam into the virtualenv")
     p.communicate()
@@ -50,8 +42,25 @@ def write_setup_script(dir_path):
     with open(f'{dir_path}/setup_env.sh', 'w') as _f:
         _f.write("#!/bin/bash\n")
         _f.write("\n")
-        _f.write(f"source {dir_path}/software/env/activate\n")
+        _f.write(f"source {dir_path}/software/env/bin/activate\n")
+        _f.write(f"source balsamactivate {dir_path}/balsam_db\n")
 
+def init_database(dir_path : pathlib.Path):
+    command = f'''
+        source {dir_path}/software/env/bin/activate
+        balsam init {dir_path}/balsam_db
+    '''
+    p = subprocess.Popen(command, shell=True)
+    print("Initializing balsam database")
+    p.communicate()
+
+def install_virtualenv(python):
+
+    # This function makes sure virtualenv is installed:
+    command = [python, '-m', "pip", "install", "virtualenv", "--user"]
+    p = subprocess.Popen(command)
+    print("Installing virtual env")
+    p.communicate()
 
 def main():
 
@@ -68,18 +77,21 @@ def main():
     parser.add_argument('--directory',
         help="Top level location for this installation",
         type=pathlib.Path,
-        default=f"/projects/datascience/balsam-ci/{timestamp}/software/")
+        default=f"/projects/datascience/balsam-ci/{timestamp}/")
 
     args = parser.parse_args()
 
+    # install_virtualenv(args.python)
 
     # First, create the directory:
     create_directory(args.directory)
 
     # Next, create a virtual env within that directory:
-    build_env(args.directory / pathlib.Path("env"), args.python)
+    build_env(args.directory / pathlib.Path("software/env"), args.python)
 
-    install_balsam(args.directory / pathlib.Path("env"))
+    install_balsam(args.directory / pathlib.Path("software/env"))
+
+    init_database(args.directory )
 
     write_setup_script(args.directory)
 
